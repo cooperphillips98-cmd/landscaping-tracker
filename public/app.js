@@ -4,9 +4,7 @@ let timerInterval = null;
 let deferredPrompt = null;
 let allLocations = [];
 
-const RING_C = 2 * Math.PI * 54; // 339.3
-
-// PWA install prompt (Android/Chrome)
+// PWA install prompt
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
   deferredPrompt = e;
@@ -22,7 +20,6 @@ async function installApp() {
   hide('install-banner');
 }
 
-// Offline detection
 window.addEventListener('online',  () => hide('offline-banner'));
 window.addEventListener('offline', () => show('offline-banner'));
 
@@ -44,79 +41,16 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!navigator.onLine) show('offline-banner');
 });
 
-// ── Tab navigation ──
+// ── Tab switching ──
 function showWorkerTab(tab) {
-  ['home','hours','history'].forEach(t => {
+  ['home', 'hours', 'history'].forEach(t => {
     document.getElementById('tab-' + t).classList.toggle('section-hidden', t !== tab);
     document.getElementById('nav-' + t).classList.toggle('active', t === tab);
   });
 }
 
-// ── Haptic feedback ──
 function haptic() {
   try { if (navigator.vibrate) navigator.vibrate(50); } catch {}
-}
-
-// ── Clock-in overlay ──
-function showClockInOverlay(locName) {
-  const el = document.getElementById('clockin-overlay');
-  document.getElementById('overlay-loc').textContent = locName || '';
-  el.classList.add('visible');
-  setTimeout(() => el.classList.remove('visible'), 2200);
-}
-
-// ── Progress ring ──
-function updateProgressRing(elapsedMs) {
-  const ring = document.getElementById('ring-fill');
-  if (!ring) return;
-  const mins = elapsedMs / 60000;
-  const maxMins = 600; // 10 hours = full ring
-  const pct = Math.min(mins / maxMins, 1);
-  const offset = RING_C * (1 - pct);
-  ring.style.strokeDasharray = RING_C;
-  ring.style.strokeDashoffset = offset;
-  if (mins >= 600) {
-    ring.style.stroke = '#ef4444'; // red
-  } else if (mins >= 420) {
-    ring.style.stroke = '#f59e0b'; // amber
-  } else {
-    ring.style.stroke = '#16a34a'; // green
-  }
-}
-
-// ── Location color (hash-based) ──
-const LOC_COLORS = ['#16a34a','#2563eb','#9333ea','#ea580c','#0891b2','#be185d','#65a30d','#d97706'];
-function locationColor(id) {
-  return LOC_COLORS[Math.abs(parseInt(id) || 0) % LOC_COLORS.length];
-}
-
-// ── Swipe right to clock out ──
-function initSwipeClockOut() {
-  const card = document.getElementById('form-out');
-  if (!card) return;
-  let startX = null;
-  card.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
-  card.addEventListener('touchend', e => {
-    if (startX === null) return;
-    const delta = e.changedTouches[0].clientX - startX;
-    startX = null;
-    if (delta > 80) { haptic(); clockOut(); }
-  }, { passive: true });
-}
-
-// ── Auto-select most recent location ──
-async function autoSelectRecentLocation() {
-  try {
-    const entries = await get(`/api/entries/worker/${worker.id}?endDate=${today()}`);
-    if (entries && entries.length) {
-      const last = entries[0];
-      const sel = document.getElementById('loc-select');
-      if (last.location_id && sel) {
-        sel.value = String(last.location_id);
-        updateLocPreview();
-      }
-    }
-  } catch {}
 }
 
 async function login() {
@@ -151,7 +85,6 @@ async function showApp() {
   await refreshStatus();
   await loadHistory();
   await loadWeekHours();
-  initSwipeClockOut();
   if (!currentEntry) autoSelectRecentLocation();
 }
 
@@ -162,37 +95,30 @@ async function loadLocations() {
   sel.innerHTML = '<option value="">— Choose a location —</option>';
   locs.forEach(l => sel.insertAdjacentHTML('beforeend',
     `<option value="${l.id}">${esc(l.name)}${l.address ? ' — ' + esc(l.address) : ''}</option>`));
-  sel.addEventListener('change', updateLocPreview);
+  sel.addEventListener('change', updateMapsLink);
 }
 
-function updateLocPreview() {
+function updateMapsLink() {
   const locId = document.getElementById('loc-select').value;
   const loc = allLocations.find(l => String(l.id) === locId);
-  const preview = document.getElementById('loc-preview');
-  if (loc) {
-    document.getElementById('loc-preview-name').textContent = loc.name;
-    document.getElementById('loc-preview-addr').textContent = loc.address || '';
-    const iconEl = document.getElementById('loc-preview-icon');
-    iconEl.textContent = '📍';
-    iconEl.style.background = locationColor(loc.id);
-    iconEl.style.width = '42px';
-    iconEl.style.height = '42px';
-    iconEl.style.borderRadius = '50%';
-    iconEl.style.flexShrink = '0';
-    if (loc.address) {
-      document.getElementById('maps-link').href = `https://maps.google.com/?q=${encodeURIComponent(loc.address)}`;
-      document.getElementById('maps-link').style.display = '';
-    } else {
-      document.getElementById('maps-link').style.display = 'none';
-    }
-    preview.classList.remove('section-hidden');
+  if (loc && loc.address) {
+    document.getElementById('maps-link').href = `https://maps.google.com/?q=${encodeURIComponent(loc.address)}`;
+    show('maps-link-wrap');
   } else {
-    preview.classList.add('section-hidden');
+    hide('maps-link-wrap');
   }
 }
 
-// Keep old updateMapsLink name in case anything calls it
-function updateMapsLink() { updateLocPreview(); }
+async function autoSelectRecentLocation() {
+  try {
+    const entries = await get(`/api/entries/worker/${worker.id}?endDate=${today()}`);
+    if (entries && entries.length) {
+      const sel = document.getElementById('loc-select');
+      sel.value = String(entries[0].location_id);
+      updateMapsLink();
+    }
+  } catch {}
+}
 
 async function refreshStatus() {
   const data = await get(`/api/entries/current/${worker.id}`);
@@ -222,45 +148,41 @@ function renderStatus() {
     const tick = () => {
       const elapsed = Date.now() - start;
       document.getElementById('s-timer').textContent = fmtElapsed(elapsed);
-      updateProgressRing(elapsed);
       if (elapsed > 10 * 60 * 60 * 1000) show('ot-warning');
     };
     tick(); timerInterval = setInterval(tick, 1000);
   } else {
     show('s-out'); hide('s-in');
     show('form-in'); hide('form-out');
-    updateProgressRing(0);
   }
 }
 
 async function clockIn() {
   const locationId = document.getElementById('loc-select').value;
   if (!locationId) { showAlert('Please select a location.', 'error'); return; }
-  if (!navigator.onLine) { showAlert('No internet connection. Please reconnect to clock in.', 'error'); return; }
+  if (!navigator.onLine) { showAlert('No internet connection.', 'error'); return; }
   const notes = document.getElementById('in-notes').value.trim();
   let lat = null, lng = null;
   try { const p = await getGPS(); lat = p.coords.latitude; lng = p.coords.longitude; } catch {}
   const r = await post('/api/entries/clock-in', { workerId: worker.id, locationId, latitude: lat, longitude: lng, notes });
   if (r.success) {
-    const locName = allLocations.find(l => String(l.id) === locationId)?.name || '';
     document.getElementById('in-notes').value = '';
     document.getElementById('loc-select').value = '';
-    document.getElementById('loc-preview').classList.add('section-hidden');
-    showClockInOverlay(locName);
+    hide('maps-link-wrap');
     await refreshStatus(); await loadHistory();
+    showAlert('Clocked in! Have a great shift.', 'success');
   } else {
     showAlert(r.message || 'Failed to clock in.', 'error');
   }
 }
 
 async function clockOut() {
-  if (!navigator.onLine) { showAlert('No internet connection. Please reconnect to clock out.', 'error'); return; }
+  if (!navigator.onLine) { showAlert('No internet connection.', 'error'); return; }
   let lat = null, lng = null;
   try { const p = await getGPS(); lat = p.coords.latitude; lng = p.coords.longitude; } catch {}
   const notes = document.getElementById('out-notes').value.trim();
   const r = await post('/api/entries/clock-out', { workerId: worker.id, latitude: lat, longitude: lng, notes });
   if (r.success) {
-    haptic();
     document.getElementById('out-notes').value = '';
     await refreshStatus(); await loadHistory(); await loadWeekHours();
     showAlert(`Clocked out! Worked ${fmtDur(r.entry.duration_minutes)}.`, 'success');
@@ -268,6 +190,11 @@ async function clockOut() {
   } else {
     showAlert(r.message || 'Failed.', 'error');
   }
+}
+
+const LOC_COLORS = ['#16a34a','#2563eb','#9333ea','#ea580c','#0891b2','#be185d','#65a30d','#d97706'];
+function locationColor(id) {
+  return LOC_COLORS[Math.abs(parseInt(id) || 0) % LOC_COLORS.length];
 }
 
 async function loadHistory(all = false) {
@@ -292,11 +219,9 @@ async function loadHistory(all = false) {
 async function loadWeekHours() {
   const now = new Date();
   const todayStr = toLocalDateStr(now);
-
   const weekStart = new Date(now);
   weekStart.setDate(weekStart.getDate() - weekStart.getDay());
   const weekStartStr = toLocalDateStr(weekStart);
-
   const monthStartStr = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
   const entries = await get(`/api/entries/worker/${worker.id}?startDate=${monthStartStr}`);
 
@@ -306,17 +231,10 @@ async function loadWeekHours() {
                            .reduce((s, e) => s + (e.duration_minutes || 0), 0);
   const monthMins = entries.reduce((s, e) => s + (e.duration_minutes || 0), 0);
 
-  // Main hour displays
   document.getElementById('today-hours').textContent = fmtDur(todayMins) || '0m';
   document.getElementById('week-hours').textContent  = fmtDur(weekMins)  || '0m';
   document.getElementById('month-hours').textContent = fmtDur(monthMins) || '0m';
 
-  // Sticky hours bar
-  document.getElementById('bar-today').textContent = fmtDur(todayMins) || '0m';
-  document.getElementById('bar-week').textContent  = fmtDur(weekMins)  || '0m';
-  document.getElementById('bar-month').textContent = fmtDur(monthMins) || '0m';
-
-  // Daily breakdown
   const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const todayDay = now.getDay();
   const byDay = {};
@@ -333,7 +251,6 @@ async function loadWeekHours() {
     </div>`;
   }).join('');
 
-  // Estimated earnings
   if (worker.payRate) {
     const pay = (weekMins / 60) * parseFloat(worker.payRate);
     document.getElementById('week-pay').textContent = '$' + pay.toFixed(2);
@@ -343,9 +260,7 @@ async function loadWeekHours() {
 }
 
 // Helpers
-function toLocalDateStr(d) {
-  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-}
+function toLocalDateStr(d) { return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
 function getGPS() {
   return new Promise((res, rej) => {
     if (!navigator.geolocation) { rej(); return; }

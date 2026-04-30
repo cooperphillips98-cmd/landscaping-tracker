@@ -121,7 +121,7 @@ select.form-control{background-image:url("data:image/svg+xml,%3Csvg xmlns='http:
 .clock-label{font-size:1.15rem;font-weight:800;margin-bottom:.25rem}
 .clock-sub{font-size:.9rem;opacity:.75}
 .clock-timer{font-size:3rem;font-weight:900;font-variant-numeric:tabular-nums;letter-spacing:.03em;margin:.75rem 0 .25rem;line-height:1}
-.worker-greeting{font-size:1rem;font-weight:700;color:var(--brand-dark);margin-bottom:.5rem;padding:.25rem 0}
+.worker-greeting{font-size:1rem;font-weight:700;color:var(--gray-600);margin-bottom:.75rem}
 
 /* ── Progress ring ── */
 .progress-ring-wrap{position:relative;display:flex;align-items:center;justify-content:center;margin:.5rem 0 .75rem}
@@ -140,9 +140,9 @@ select.form-control{background-image:url("data:image/svg+xml,%3Csvg xmlns='http:
 
 /* ── Bottom nav ── */
 .bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--border);display:flex;z-index:100;box-shadow:0 -2px 16px rgba(0,0,0,.08);padding-bottom:env(safe-area-inset-bottom,0px)}
-.nav-tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:.7rem .5rem .6rem;border:none;background:transparent;color:var(--gray-400);font-size:.68rem;font-weight:700;cursor:pointer;gap:.2rem;transition:color .15s;letter-spacing:.02em;text-transform:uppercase}
+.nav-tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:.75rem .5rem;border:none;background:transparent;color:var(--gray-400);font-size:.75rem;font-weight:700;cursor:pointer;gap:.3rem;transition:color .15s;letter-spacing:.01em}
 .nav-tab.active{color:var(--brand)}
-.nav-tab .nav-icon{font-size:1.45rem;line-height:1}
+.nav-icon{font-size:1.5rem;line-height:1}
 
 /* ── Tab content ── */
 .tab-wrap{padding-bottom:80px}
