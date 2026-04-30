@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Legacy Landscape Management – Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=8">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- ADMIN LOGIN -->
+<div id="admin-login">
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="login-logo">
+        <img src="/logo.png" alt="Legacy Landscape Management">
+        <h1>Admin Panel</h1>
+        <p>Legacy Landscape Management LLC</p>
+      </div>
+      <div id="admin-login-err" class="alert alert-error section-hidden"></div>
+      <div class="form-group">
+        <label class="form-label">Admin Password</label>
+        <input id="admin-pw" type="password" class="form-control" placeholder="Enter password">
+      </div>
+      <button class="btn btn-primary btn-block btn-lg" onclick="adminLogin()">Sign In</button>
+      <div class="text-center mt-2">
+        <a href="/" class="text-muted" style="font-size:.8rem">← Worker App</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN APP -->
+<div id="admin-app" class="section-hidden">
+  <header class="header">
+    <div class="header-logo">
+      <img src="/logo.png" alt="Legacy">
+      <div class="header-logo-text">
+        <span>Legacy Landscape</span>
+        <span>Management LLC</span>
+      </div>
+    </div>
+    <div class="header-user">
+      <a href="/" class="btn btn-ghost">Worker App</a>
+      <button class="btn btn-ghost" onclick="adminSignOut()">Sign Out</button>
+    </div>
+  </header>
+
+  <div class="container-lg" style="padding-top:1rem">
+    <div id="admin-alert" class="section-hidden"></div>
+
+    <div class="admin-nav">
+      <button class="nav-btn active" onclick="showTab(this,'dashboard')">Dashboard</button>
+      <button class="nav-btn" onclick="showTab(this,'entries')">Time Entries</button>
+      <button class="nav-btn" onclick="showTab(this,'workers')">Workers</button>
+      <button class="nav-btn" onclick="showTab(this,'locations')">Locations</button>
+      <button class="nav-btn" onclick="showTab(this,'spraying')">Spraying</button>
+      <button class="nav-btn" onclick="showTab(this,'payroll')">Payroll</button>
+      <button class="nav-btn" onclick="showTab(this,'settings')">Settings</button>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="tab-dashboard">
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-value" id="st-workers">–</div><div class="stat-label">Workers</div></div>
+        <div class="stat-card"><div class="stat-value" id="st-active">–</div><div class="stat-label">Working Now</div></div>
+        <div class="stat-card"><div class="stat-value" id="st-today">–</div><div class="stat-label">Today's Hours</div></div>
+        <div class="stat-card"><div class="stat-value" id="st-week">–</div><div class="stat-label">This Week</div></div>
+      </div>
+
+      <!-- Charts -->
+      <div class="chart-grid">
+        <div class="chart-card">
+          <div class="chart-title">Hours This Week by Worker</div>
+          <canvas id="chart-workers" height="220"></canvas>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Weekly Hours Trend (8 Weeks)</div>
+          <canvas id="chart-trend" height="220"></canvas>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="sec-hdr">
+          <div class="card-title mb-0">Currently Working</div>
+          <button class="btn btn-outline btn-sm" onclick="loadActive()">↻ Refresh</button>
+        </div>
+        <div id="active-list"><div class="table-empty">Loading…</div></div>
+      </div>
+    </div>
+
+    <!-- ENTRIES -->
+    <div id="tab-entries" class="section-hidden">
+      <div class="filter-bar">
+        <div class="form-group">
+          <label class="form-label">Worker</label>
+          <select id="f-worker" class="form-control"><option value="">All Workers</option></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Location</label>
+          <select id="f-location" class="form-control"><option value="">All Locations</option></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">From</label>
+          <input id="f-start" type="date" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label">To</label>
+          <input id="f-end" type="date" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Search</label>
+          <input id="f-search" type="text" class="form-control" placeholder="Worker or location…" oninput="filterEntries()">
+        </div>
+        <button class="btn btn-primary" onclick="loadEntries()">Filter</button>
+        <button class="btn btn-outline" onclick="exportCSV()">Export CSV</button>
+        <button class="btn btn-outline" onclick="window.print()">🖨 Print</button>
+      </div>
+      <div class="card mb-0" style="padding:0;overflow:hidden">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Date</th><th>Worker</th><th>Location</th><th>Clock In</th><th>Clock Out</th><th>Duration</th><th>GPS In</th><th>Notes</th><th></th></tr>
+            </thead>
+            <tbody id="entries-tbody">
+              <tr><td colspan="9" class="table-empty">Set filters and click Filter</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- WORKERS -->
+    <div id="tab-workers" class="section-hidden">
+      <div class="sec-hdr">
+        <h2>Workers</h2>
+        <button class="btn btn-primary btn-sm" onclick="openModal('m-add-worker')">+ Add Worker</button>
+      </div>
+      <div class="workers-grid">
+        <div class="card mb-0" style="padding:0;overflow:hidden">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Name</th><th>PIN</th><th>Pay Rate</th><th>Added</th><th>Actions</th></tr></thead>
+              <tbody id="workers-tbody"><tr><td colspan="5" class="table-empty">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card mb-0">
+          <div class="card-title">Add App to Phone</div>
+          <p style="font-size:.85rem;color:var(--gray-600);margin-bottom:.75rem">Share this link with workers so they can add the app to their home screen.</p>
+          <div style="display:flex;gap:.5rem;margin-bottom:.875rem">
+            <input id="app-url" class="form-control" readonly style="font-size:.8rem">
+            <button class="btn btn-outline btn-sm" onclick="copyAppUrl()" style="white-space:nowrap">Copy</button>
+          </div>
+          <div style="background:var(--gray-100);border-radius:var(--r-xs);padding:.75rem;font-size:.825rem;margin-bottom:.5rem;line-height:1.5">
+            <strong>📱 iPhone:</strong> Open in Safari → tap Share ⬆ → "Add to Home Screen"
+          </div>
+          <div style="background:var(--gray-100);border-radius:var(--r-xs);padding:.75rem;font-size:.825rem;line-height:1.5">
+            <strong>🤖 Android:</strong> Open in Chrome → tap Menu ⋮ → "Add to Home Screen"
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOCATIONS -->
+    <div id="tab-locations" class="section-hidden">
+      <div class="sec-hdr">
+        <h2>Locations / Job Sites</h2>
+        <button class="btn btn-primary btn-sm" onclick="openModal('m-add-location')">+ Add Location</button>
+      </div>
+      <div class="card mb-0" style="padding:0;overflow:hidden">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Name</th><th>Address</th><th>Added</th><th>Actions</th></tr></thead>
+            <tbody id="locations-tbody"><tr><td colspan="4" class="table-empty">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- SPRAYING -->
+    <div id="tab-spraying" class="section-hidden">
+      <div class="card" id="seasonal-card">
+        <div class="card-title">Seasonal Recommendations</div>
+        <div id="seasonal-tips" style="font-size:.9rem;color:var(--gray-700);line-height:1.8"></div>
+      </div>
+
+      <div style="display:flex;gap:.5rem;margin-bottom:1.25rem;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm spray-subnav active" onclick="showSprayTab(this,'spray-jobs')">Spray Jobs</button>
+        <button class="btn btn-outline btn-sm spray-subnav" onclick="showSprayTab(this,'spray-add')">+ Add Job</button>
+        <button class="btn btn-outline btn-sm spray-subnav" onclick="showSprayTab(this,'spray-clients')">Clients</button>
+        <button class="btn btn-outline btn-sm spray-subnav" onclick="showSprayTab(this,'spray-products')">Products</button>
+        <button class="btn btn-outline btn-sm spray-subnav" onclick="showSprayTab(this,'spray-followups')">Follow-Ups</button>
+      </div>
+
+      <!-- Spray Jobs List -->
+      <div id="spray-jobs">
+        <div class="filter-bar">
+          <div class="form-group">
+            <label class="form-label">From</label>
+            <input id="sf-start" type="date" class="form-control">
+          </div>
+          <div class="form-group">
+            <label class="form-label">To</label>
+            <input id="sf-end" type="date" class="form-control">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Client</label>
+            <input id="sf-client" type="text" class="form-control" placeholder="Search client…">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Service Type</label>
+            <select id="sf-service" class="form-control">
+              <option value="">All Types</option>
+              <option>Weed Control</option>
+              <option>Fertilizer</option>
+              <option>Pest Control</option>
+              <option>Custom</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Employee</label>
+            <select id="sf-employee" class="form-control"><option value="">All Employees</option></select>
+          </div>
+          <button class="btn btn-primary" onclick="loadSprayJobs()">Filter</button>
+          <button class="btn btn-outline" onclick="exportSprayCSV()">Export CSV</button>
+        </div>
+        <div class="card mb-0" style="padding:0;overflow:hidden">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Date</th><th>Client</th><th>Address</th><th>Service</th><th>Product</th><th>Employee</th><th>Start</th><th>End</th><th>Total</th><th>Next Service</th><th>Notes</th><th></th></tr>
+              </thead>
+              <tbody id="spray-jobs-tbody">
+                <tr><td colspan="12" class="table-empty">Apply filters and click Filter</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Add Spray Job -->
+      <div id="spray-add" class="section-hidden">
+        <div class="card" style="max-width:640px">
+          <div class="card-title">Add Spray Job</div>
+          <div id="spray-add-err" class="alert alert-error section-hidden"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+            <div class="form-group">
+              <label class="form-label">Client Name</label>
+              <input id="sj-client" type="text" class="form-control" placeholder="e.g. Johnson Residence">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Phone</label>
+              <input id="sj-phone" type="tel" class="form-control" placeholder="(555) 000-0000">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Address</label>
+            <input id="sj-address" type="text" class="form-control" placeholder="123 Main St">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+            <div class="form-group">
+              <label class="form-label">Service Type</label>
+              <select id="sj-service" class="form-control">
+                <option value="">— Select —</option>
+                <option>Weed Control</option>
+                <option>Fertilizer</option>
+                <option>Pest Control</option>
+                <option>Custom</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Product Used</label>
+              <input id="sj-product" type="text" class="form-control" placeholder="Product name">
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+            <div class="form-group">
+              <label class="form-label">Employee</label>
+              <select id="sj-employee" class="form-control"><option value="">— Select —</option></select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Date</label>
+              <input id="sj-date" type="date" class="form-control">
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+            <div class="form-group">
+              <label class="form-label">Start Time</label>
+              <input id="sj-start" type="time" class="form-control">
+            </div>
+            <div class="form-group">
+              <label class="form-label">End Time</label>
+              <input id="sj-end" type="time" class="form-control">
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+            <div class="form-group">
+              <label class="form-label">Next Service Date</label>
+              <input id="sj-next" type="date" class="form-control">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Weather Conditions</label>
+              <input id="sj-weather" type="text" class="form-control" placeholder="e.g. Sunny, 75°F">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Notes</label>
+            <input id="sj-notes" type="text" class="form-control" placeholder="Any additional notes">
+          </div>
+          <button class="btn btn-primary" onclick="addSprayJob()">Save Spray Job</button>
+        </div>
+      </div>
+
+      <!-- Clients -->
+      <div id="spray-clients" class="section-hidden">
+        <div class="sec-hdr">
+          <h2>Clients</h2>
+          <button class="btn btn-primary btn-sm" onclick="openModal('m-add-client')">+ Add Client</button>
+        </div>
+        <div class="card mb-0" style="padding:0;overflow:hidden">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Name</th><th>Phone</th><th>Address</th><th>Last Service</th><th>Last Product</th><th>Next Service</th><th>Actions</th></tr></thead>
+              <tbody id="clients-tbody"><tr><td colspan="7" class="table-empty">No clients yet</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Products -->
+      <div id="spray-products" class="section-hidden">
+        <div class="sec-hdr">
+          <h2>Products</h2>
+          <button class="btn btn-primary btn-sm" onclick="openModal('m-add-product')">+ Add Product</button>
+        </div>
+        <div class="card mb-0" style="padding:0;overflow:hidden">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Product Name</th><th>Type</th><th>Reapply Window</th><th>Notes</th><th>Actions</th></tr></thead>
+              <tbody id="products-tbody">
+                <tr><td colspan="5" class="table-empty">No products yet</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Follow-Ups -->
+      <div id="spray-followups" class="section-hidden">
+        <div class="card mb-0" style="padding:0;overflow:hidden">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Client</th><th>Address</th><th>Service Type</th><th>Due Date</th><th>Last Product</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody id="followups-tbody"><tr><td colspan="7" class="table-empty">No upcoming follow-ups</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- end tab-spraying -->
+
+    <!-- PAYROLL -->
+    <div id="tab-payroll" class="section-hidden">
+      <div class="filter-bar">
+        <div class="form-group">
+          <label class="form-label">Pay Period Start</label>
+          <input id="pr-start" type="date" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Pay Period End</label>
+          <input id="pr-end" type="date" class="form-control">
+        </div>
+        <button class="btn btn-primary" onclick="loadPayroll()">Run Report</button>
+        <button class="btn btn-outline" onclick="exportPayrollCSV()">Export CSV</button>
+        <button class="btn btn-outline" onclick="window.print()">🖨 Print</button>
+      </div>
+      <div id="payroll-results" class="section-hidden">
+        <div class="card mb-0" style="padding:0;overflow:hidden">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Worker</th><th>Entries</th><th>Total Hours</th><th>Rate / hr</th><th>Gross Pay</th></tr>
+              </thead>
+              <tbody id="payroll-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+        <p style="font-size:.8rem;color:var(--gray-500);margin-top:.75rem">* Workers without a pay rate set show $0.00. Set pay rates in the Workers tab.</p>
+      </div>
+      <div id="payroll-empty" style="text-align:center;padding:3rem;color:var(--gray-400);font-style:italic">Select a date range and click Run Report.</div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="tab-settings" class="section-hidden">
+      <div class="card" style="max-width:400px">
+        <div class="card-title">Change Admin Password</div>
+        <div class="form-group">
+          <label class="form-label">New Password</label>
+          <input id="new-pw" type="password" class="form-control" placeholder="New password">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Confirm Password</label>
+          <input id="confirm-pw" type="password" class="form-control" placeholder="Confirm">
+        </div>
+        <button class="btn btn-primary" onclick="changePassword()">Update Password</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODAL: Add Worker -->
+<div id="m-add-worker" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-title">Add Worker</div>
+    <div id="add-worker-err" class="alert alert-error section-hidden"></div>
+    <div class="form-group">
+      <label class="form-label">Name</label>
+      <input id="nw-name" type="text" class="form-control" placeholder="Worker's full name">
+    </div>
+    <div class="form-group">
+      <label class="form-label">PIN</label>
+      <input id="nw-pin" type="text" class="form-control pin-input" placeholder="e.g. 1234" maxlength="10" inputmode="numeric">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Pay Rate ($/hr) <span class="text-muted">(optional)</span></label>
+      <input id="nw-rate" type="number" class="form-control" placeholder="e.g. 18.00" min="0" step="0.01">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('m-add-worker')">Cancel</button>
+      <button class="btn btn-primary" onclick="addWorker()">Add Worker</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Edit Worker -->
+<div id="m-edit-worker" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-title">Edit Worker</div>
+    <input type="hidden" id="ew-id">
+    <div class="form-group">
+      <label class="form-label">Name</label>
+      <input id="ew-name" type="text" class="form-control">
+    </div>
+    <div class="form-group">
+      <label class="form-label">New PIN <span class="text-muted">(leave blank to keep current)</span></label>
+      <input id="ew-pin" type="text" class="form-control pin-input" placeholder="New PIN" maxlength="10" inputmode="numeric">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Pay Rate ($/hr)</label>
+      <input id="ew-rate" type="number" class="form-control" placeholder="e.g. 18.00" min="0" step="0.01">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('m-edit-worker')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveWorker()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Add Location -->
+<div id="m-add-location" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-title">Add Location / Job Site</div>
+    <div class="form-group">
+      <label class="form-label">Name</label>
+      <input id="nl-name" type="text" class="form-control" placeholder="e.g. Johnson Residence">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Address <span class="text-muted">(optional)</span></label>
+      <input id="nl-addr" type="text" class="form-control" placeholder="123 Main St">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('m-add-location')">Cancel</button>
+      <button class="btn btn-primary" onclick="addLocation()">Add Location</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Add Client -->
+<div id="m-add-client" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-title">Add Client</div>
+    <div id="add-client-err" class="alert alert-error section-hidden"></div>
+    <div class="form-group">
+      <label class="form-label">Client Name</label>
+      <input id="nc-name" type="text" class="form-control" placeholder="Full name or business">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Phone</label>
+      <input id="nc-phone" type="tel" class="form-control" placeholder="(555) 000-0000">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Address</label>
+      <input id="nc-address" type="text" class="form-control" placeholder="123 Main St">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('m-add-client')">Cancel</button>
+      <button class="btn btn-primary" onclick="addClient()">Add Client</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Edit Client -->
+<div id="m-edit-client" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-title">Edit Client</div>
+    <input type="hidden" id="ec-id">
+    <div class="form-group">
+      <label class="form-label">Client Name</label>
+      <input id="ec-name" type="text" class="form-control">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Phone</label>
+      <input id="ec-phone" type="tel" class="form-control">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Address</label>
+      <input id="ec-address" type="text" class="form-control">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('m-edit-client')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveClient()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Add Product -->
+<div id="m-add-product" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-title">Add Product</div>
+    <div id="add-product-err" class="alert alert-error section-hidden"></div>
+    <div class="form-group">
+      <label class="form-label">Product Name</label>
+      <input id="np-name" type="text" class="form-control" placeholder="e.g. Pre-M Weed Control">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Type</label>
+      <select id="np-type" class="form-control">
+        <option value="">— Select —</option>
+        <option>Fertilizer</option>
+        <option>Weed Control</option>
+        <option>Pest Control</option>
+        <option>Other</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Reapply Window</label>
+      <input id="np-window" type="text" class="form-control" placeholder="e.g. 4–6 weeks">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Notes</label>
+      <input id="np-notes" type="text" class="form-control" placeholder="Any notes">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('m-add-product')">Cancel</button>
+      <button class="btn btn-primary" onclick="addProduct()">Add Product</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Edit Product -->
+<div id="m-edit-product" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-title">Edit Product</div>
+    <input type="hidden" id="ep-id">
+    <div class="form-group">
+      <label class="form-label">Product Name</label>
+      <input id="ep-name" type="text" class="form-control">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Type</label>
+      <select id="ep-type" class="form-control">
+        <option>Fertilizer</option>
+        <option>Weed Control</option>
+        <option>Pest Control</option>
+        <option>Other</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Reapply Window</label>
+      <input id="ep-window" type="text" class="form-control">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Notes</label>
+      <input id="ep-notes" type="text" class="form-control">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('m-edit-product')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveProduct()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Edit Time Entry -->
+<div id="m-edit-entry" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-title">Edit Time Entry</div>
+    <input type="hidden" id="ee-id">
+    <div class="form-group">
+      <label class="form-label">Worker</label>
+      <select id="ee-worker" class="form-control"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Location</label>
+      <select id="ee-location" class="form-control"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Clock In</label>
+      <input id="ee-clock-in" type="datetime-local" class="form-control">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Clock Out <span class="text-muted">(leave blank if still active)</span></label>
+      <input id="ee-clock-out" type="datetime-local" class="form-control">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Notes</label>
+      <input id="ee-notes" type="text" class="form-control" placeholder="Optional notes">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('m-edit-entry')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEntry()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Edit Spray Job -->
+<div id="m-edit-spray" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-title">Edit Spray Job</div>
+    <input type="hidden" id="esj-id">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+      <div class="form-group">
+        <label class="form-label">Client Name</label>
+        <input id="esj-client" type="text" class="form-control">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Phone</label>
+        <input id="esj-phone" type="tel" class="form-control">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Address</label>
+      <input id="esj-address" type="text" class="form-control">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+      <div class="form-group">
+        <label class="form-label">Service Type</label>
+        <select id="esj-service" class="form-control">
+          <option value="">— Select —</option>
+          <option>Weed Control</option>
+          <option>Fertilizer</option>
+          <option>Pest Control</option>
+          <option>Custom</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Product Used</label>
+        <input id="esj-product" type="text" class="form-control">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+      <div class="form-group">
+        <label class="form-label">Employee</label>
+        <select id="esj-employee" class="form-control"><option value="">— Select —</option></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Date</label>
+        <input id="esj-date" type="date" class="form-control">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+      <div class="form-group">
+        <label class="form-label">Start Time</label>
+        <input id="esj-start" type="time" class="form-control">
+      </div>
+      <div class="form-group">
+        <label class="form-label">End Time</label>
+        <input id="esj-end" type="time" class="form-control">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+      <div class="form-group">
+        <label class="form-label">Next Service Date</label>
+        <input id="esj-next" type="date" class="form-control">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Weather Conditions</label>
+        <input id="esj-weather" type="text" class="form-control">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Notes</label>
+      <input id="esj-notes" type="text" class="form-control">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('m-edit-spray')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSprayJob()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<script src="admin.js"></script>
+</body>
+</html>

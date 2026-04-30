@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+  <title>Legacy Landscape Management</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=11">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/logo.png">
+  <meta name="theme-color" content="#064e2f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+</head>
+<body>
+
+<!-- Offline banner -->
+<div id="offline-banner" class="section-hidden" style="position:fixed;top:0;left:0;right:0;z-index:999;background:#1f2937;color:#fff;text-align:center;padding:.6rem 1rem;font-size:.875rem;font-weight:600">
+  📡 No internet — reconnect to clock in or out
+</div>
+
+<!-- Clock-in success overlay -->
+<div id="clockin-overlay" class="clockin-overlay">
+  <div class="clockin-check">✓</div>
+  <div style="color:#fff;font-size:1.4rem;font-weight:800;margin-top:1rem">Clocked In!</div>
+  <div id="overlay-loc" style="color:rgba(255,255,255,.75);font-size:1rem;margin-top:.4rem"></div>
+</div>
+
+<!-- LOGIN -->
+<div id="login-section">
+  <div class="login-wrap">
+    <div class="login-card">
+
+      <div class="login-logo">
+        <img src="/logo.png" alt="Legacy Landscape Management">
+        <h1>Legacy Landscape Management</h1>
+        <p>Employee Time Tracker</p>
+      </div>
+
+      <div id="login-error" class="alert alert-error section-hidden"></div>
+
+      <div class="form-group">
+        <label class="form-label">Your Name</label>
+        <input id="inp-name" type="text" class="form-control" placeholder="Enter your name" autocomplete="name">
+      </div>
+      <div class="form-group">
+        <label class="form-label">PIN</label>
+        <input id="inp-pin" type="password" class="form-control pin-input" placeholder="••••" maxlength="10" inputmode="numeric">
+      </div>
+
+      <button class="btn btn-primary btn-block btn-lg" onclick="login()">Sign In</button>
+
+      <!-- Android install prompt -->
+      <div id="install-banner" class="section-hidden" style="margin-top:.875rem">
+        <button class="btn btn-outline btn-block btn-lg" id="install-btn" onclick="installApp()">📲 Install App on Phone</button>
+      </div>
+
+      <!-- iOS install guide -->
+      <div id="ios-banner" class="section-hidden">
+        <div class="install-guide">
+          <div class="install-guide-title">📱 Add to Home Screen</div>
+          <p style="font-size:.85rem;color:var(--gray-600);margin-bottom:.65rem">Save this app to your phone for quick access.</p>
+          <div class="install-steps">
+            <div class="install-step">
+              <div class="install-step-title">🍎 iPhone (Safari)</div>
+              <ol>
+                <li>Tap Share ⬆ at the bottom</li>
+                <li>Scroll down</li>
+                <li>Tap "Add to Home Screen"</li>
+                <li>Tap "Add"</li>
+              </ol>
+            </div>
+            <div class="install-step">
+              <div class="install-step-title">🤖 Android (Chrome)</div>
+              <ol>
+                <li>Tap Menu ⋮ at top right</li>
+                <li>Tap "Add to Home Screen"</li>
+                <li>Tap "Install" or "Add"</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="text-center mt-2">
+        <a href="admin.html" class="text-muted" style="font-size:.8rem">Admin Panel →</a>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app-section" class="section-hidden">
+  <header class="header" style="top:0">
+    <div class="header-logo">
+      <img src="/logo.png" alt="Legacy">
+      <div class="header-logo-text">
+        <span>Legacy Landscape</span>
+        <span>Management LLC</span>
+      </div>
+    </div>
+    <div class="header-user">
+      <strong id="hdr-name" style="color:#fff;font-size:.9rem"></strong>
+      <button class="btn btn-ghost" onclick="signOut()">Sign Out</button>
+    </div>
+  </header>
+
+  <!-- Sticky hours bar -->
+  <div class="hours-bar">
+    <div>
+      <div class="hours-bar-label">Today</div>
+      <div class="hours-bar-val" id="bar-today">—</div>
+    </div>
+    <div>
+      <div class="hours-bar-label">This Week</div>
+      <div class="hours-bar-val" id="bar-week">—</div>
+    </div>
+    <div>
+      <div class="hours-bar-label">This Month</div>
+      <div class="hours-bar-val" id="bar-month">—</div>
+    </div>
+  </div>
+
+  <div class="tab-wrap">
+
+    <!-- Alert -->
+    <div id="app-alert" class="section-hidden" style="margin:.75rem 1rem 0"></div>
+
+    <!-- Overtime warning -->
+    <div id="ot-warning" class="section-hidden alert alert-error" style="margin:.5rem 1rem 0">
+      ⚠️ You've been clocked in over 10 hours — did you forget to clock out?
+    </div>
+
+    <!-- ── TAB: HOME ── -->
+    <div id="tab-home" class="tab-pane container" style="padding-top:1rem">
+
+      <!-- Greeting -->
+      <div id="worker-greeting" class="worker-greeting section-hidden"></div>
+
+      <!-- Status card -->
+      <div class="card" style="padding:0;overflow:hidden">
+        <div id="s-out" class="clock-status out">
+          <span class="clock-icon">⏸</span>
+          <div class="clock-label">You're Clocked Out</div>
+          <div class="clock-sub">Select a job site below to start</div>
+        </div>
+        <div id="s-in" class="clock-status in section-hidden">
+          <div class="progress-ring-wrap">
+            <svg class="progress-ring" viewBox="0 0 120 120" width="190" height="190">
+              <circle class="ring-bg" cx="60" cy="60" r="54"/>
+              <circle id="ring-fill" class="ring-fill" cx="60" cy="60" r="54"/>
+            </svg>
+            <div class="ring-inner">
+              <div id="s-timer" class="clock-timer" style="font-size:1.8rem">0:00:00</div>
+              <div id="s-since" class="clock-sub" style="font-size:.75rem"></div>
+            </div>
+          </div>
+          <div class="clock-label" style="margin-top:.5rem">Currently Working</div>
+          <div id="s-loc" class="clock-sub"></div>
+        </div>
+      </div>
+
+      <!-- Clock In card -->
+      <div id="form-in" class="card">
+        <div class="card-title">Clock In</div>
+        <div class="form-group" style="margin-bottom:.6rem">
+          <label class="form-label">Select Job Site</label>
+          <select id="loc-select" class="form-control" style="font-size:1rem;padding:.85rem 1rem">
+            <option value="">— Choose a location —</option>
+          </select>
+        </div>
+        <!-- Location preview card -->
+        <div id="loc-preview" class="loc-preview-card section-hidden">
+          <div class="loc-preview-icon" id="loc-preview-icon">📍</div>
+          <div class="loc-preview-info">
+            <div class="loc-preview-name" id="loc-preview-name"></div>
+            <div class="loc-preview-addr" id="loc-preview-addr"></div>
+          </div>
+          <a id="maps-link" href="#" target="_blank" style="margin-left:auto;white-space:nowrap;font-size:.8rem;color:var(--brand);font-weight:700;text-decoration:none">Directions →</a>
+        </div>
+        <div class="form-group" style="margin-bottom:1rem">
+          <label class="form-label">Notes <span class="text-muted" style="font-weight:400">(optional)</span></label>
+          <input id="in-notes" type="text" class="form-control" style="font-size:1rem" placeholder="e.g. Starting on back yard">
+        </div>
+        <button class="btn btn-success btn-block btn-lg" onclick="haptic();clockIn()">▶ Clock In</button>
+      </div>
+
+      <!-- Clock Out card -->
+      <div id="form-out" class="card section-hidden">
+        <div class="card-title">Clock Out</div>
+        <div class="form-group" style="margin-bottom:1rem">
+          <label class="form-label">Notes <span class="text-muted" style="font-weight:400">(optional)</span></label>
+          <input id="out-notes" type="text" class="form-control" style="font-size:1rem" placeholder="e.g. Mowed front lawn, trimmed hedges">
+        </div>
+        <button class="btn btn-danger btn-block btn-lg" onclick="haptic();clockOut()">⏹ Clock Out</button>
+        <div class="swipe-hint">← swipe right to clock out</div>
+      </div>
+
+    </div>
+
+    <!-- ── TAB: HOURS ── -->
+    <div id="tab-hours" class="tab-pane section-hidden container" style="padding-top:1rem">
+      <div class="card">
+        <div class="card-title">Hours Summary</div>
+        <div class="flex justify-between items-center" style="margin-bottom:.5rem">
+          <span class="text-muted" style="font-size:.875rem">Today</span>
+          <span id="today-hours" class="font-bold" style="font-size:1.1rem;color:var(--gray-700)">—</span>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-muted" style="font-size:1rem">This Week</span>
+          <span id="week-hours" class="font-bold text-green" style="font-size:1.6rem">—</span>
+        </div>
+        <div class="flex justify-between items-center" style="margin-top:.4rem">
+          <span class="text-muted" style="font-size:.875rem">This Month</span>
+          <span id="month-hours" class="font-bold" style="font-size:1.1rem;color:var(--gray-700)">—</span>
+        </div>
+        <!-- Daily breakdown -->
+        <div id="daily-breakdown" style="display:grid;grid-template-columns:repeat(7,1fr);gap:.2rem;margin-top:.875rem;padding-top:.75rem;border-top:1px solid var(--border)"></div>
+        <!-- Estimated earnings -->
+        <div id="week-pay-row" class="section-hidden" style="margin-top:.6rem;padding-top:.6rem;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+          <span class="text-muted" style="font-size:.9rem">Est. Earnings (week)</span>
+          <span id="week-pay" class="font-bold text-green" style="font-size:1.2rem">—</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── TAB: HISTORY ── -->
+    <div id="tab-history" class="tab-pane section-hidden container" style="padding-top:1rem">
+      <div class="card">
+        <div class="sec-hdr">
+          <div class="card-title mb-0">Recent Entries</div>
+          <button class="btn btn-outline btn-sm" onclick="loadHistory(true)">View All</button>
+        </div>
+        <div id="entries-list"><div class="table-empty">No entries yet</div></div>
+      </div>
+    </div>
+
+  </div><!-- end tab-wrap -->
+
+  <!-- Bottom nav -->
+  <nav class="bottom-nav">
+    <button class="nav-tab active" id="nav-home" onclick="showWorkerTab('home')">
+      <span>🕐</span>
+      <span>Clock</span>
+    </button>
+    <button class="nav-tab" id="nav-hours" onclick="showWorkerTab('hours')">
+      <span>📊</span>
+      <span>My Hours</span>
+    </button>
+    <button class="nav-tab" id="nav-history" onclick="showWorkerTab('history')">
+      <span>📋</span>
+      <span>History</span>
+    </button>
+  </nav>
+
+</div><!-- end app-section -->
+
+<script src="app.js?v=11"></script>
+</body>
+</html>
